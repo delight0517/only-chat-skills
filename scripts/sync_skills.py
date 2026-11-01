@@ -3,15 +3,16 @@
 """
 OmniChat / Only Chat GitHub Skill Sync Tool
 Syncs skills from delight0517/omnichat-skills directly into local OmniChat skill engines.
+Uses raw GitHub archive or gh CLI fallback.
 """
 
 import os
 import sys
-import json
-import urllib.request
+import subprocess
 import zipfile
 import io
 import shutil
+import urllib.request
 from pathlib import Path
 
 DEFAULT_REPO = "delight0517/omnichat-skills"
@@ -20,20 +21,34 @@ TARGET_DIRS = [
     Path.home() / ".gemini" / "config" / "skills",
 ]
 
+def fetch_zip_bytes(repo):
+    # Strategy 1: Public archive URL
+    url = f"https://codeload.github.com/{repo}/zip/refs/heads/main"
+    headers = {"User-Agent": "OmniChat-SkillSync/1.0"}
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.read()
+    except Exception as e:
+        print(f"[*] Direct download fallback: {e}")
+
+    # Strategy 2: gh CLI
+    try:
+        res = subprocess.run(["gh", "api", f"repos/{repo}/zipball/main"], capture_output=True, check=True)
+        return res.stdout
+    except Exception as e:
+        print(f"[-] gh api download failed: {e}")
+        return None
+
 def fetch_and_install_skills(repo=DEFAULT_REPO):
     print(f"[*] Connecting to GitHub repository: {repo}...")
-    api_url = f"https://api.github.com/repos/{repo}/zipball/main"
-    req = urllib.request.Request(api_url, headers={"User-Agent": "OmniChat-SkillSync/1.0"})
-
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            content = resp.read()
-    except Exception as e:
-        print(f"[-] Failed to fetch repository from GitHub: {e}")
+    zip_data = fetch_zip_bytes(repo)
+    if not zip_data:
+        print("[-] Unable to fetch skills package from GitHub.")
         return False
 
     print("[*] Unpacking skills archive...")
-    with zipfile.ZipFile(io.BytesIO(content)) as z:
+    with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
         # Find root folder in zip
         root_dir = z.namelist()[0].split('/')[0]
         skill_prefix = f"{root_dir}/skills/"
