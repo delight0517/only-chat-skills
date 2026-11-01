@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-OmniChat / Only Chat GitHub Skill Sync Tool
-Syncs skills from delight0517/omnichat-skills directly into local OmniChat skill engines.
-Uses raw GitHub archive or gh CLI fallback.
+Only Chat GitHub Skill Sync Tool
+Syncs skills from delight0517/only-chat-skills directly into Only Chat's SkillManager.
 """
 
 import os
@@ -15,7 +14,7 @@ import shutil
 import urllib.request
 from pathlib import Path
 
-DEFAULT_REPO = "delight0517/omnichat-skills"
+DEFAULT_REPO = "delight0517/only-chat-skills"
 TARGET_DIRS = [
     Path.home() / ".my-codex" / "skills",
     Path.home() / ".gemini" / "config" / "skills",
@@ -24,7 +23,7 @@ TARGET_DIRS = [
 def fetch_zip_bytes(repo):
     # Strategy 1: Public archive URL
     url = f"https://codeload.github.com/{repo}/zip/refs/heads/main"
-    headers = {"User-Agent": "OmniChat-SkillSync/1.0"}
+    headers = {"User-Agent": "OnlyChat-SkillSync/1.0"}
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -47,9 +46,8 @@ def fetch_and_install_skills(repo=DEFAULT_REPO):
         print("[-] Unable to fetch skills package from GitHub.")
         return False
 
-    print("[*] Unpacking skills archive...")
+    print("[*] Unpacking skills archive into Only Chat skill registry...")
     with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
-        # Find root folder in zip
         root_dir = z.namelist()[0].split('/')[0]
         skill_prefix = f"{root_dir}/skills/"
         
@@ -73,7 +71,7 @@ def fetch_and_install_skills(repo=DEFAULT_REPO):
                         shutil.copyfileobj(src, dst)
             print(f"[+] Synced skills to: {target_dir}")
 
-    print("[*] All skills loaded into OmniChat successfully!")
+    print("[*] All skills loaded into Only Chat successfully!")
     return True
 
 if __name__ == "__main__":
